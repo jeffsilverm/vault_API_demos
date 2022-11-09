@@ -1,9 +1,35 @@
 #! /bin/bash
 
+# Anything that returns status code other than 0 causes the script to exit.
+set -e
+
 VERSION=3.4.1
 BINARY=yq_linux_amd64
 SHA256SUM="adbc6dd027607718ac74ceac15f74115ac1f3caef68babfb73246929d4ffb23c"
 DESTINATION="/home/jeffs/.local/bin"
+
+SAVE_IFS=$IFS
+export IFS=":"
+first_writeable=""
+for p in $PATH; do
+  echo $p
+  if test -w $p; then
+    first_writeable=$p
+    break
+  fi
+done
+export IFS=$SAVE_IFS
+if test -z $first_writable; then
+  echo "None of the directories in the PATH (${PATH}) are writable"
+  exit 1
+else
+  echo "First writable is $first_writeable"
+  exit 0
+fi
+
+
+
+
 
 # test if we need yq at all?  Create a calibrated yaml file
 if test -e test.yaml; then
