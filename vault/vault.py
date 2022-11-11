@@ -16,25 +16,59 @@ import requests
 # version = 3.10
 
 # Make this more sophisticated - look at the VAULT_URL environmental variable
-URL = "https://localhost:8200"
+URL = "http://localhost:8200"
 
 class VaultExceptions(Exception):
     pass
 
-def initialize(url: str) -> hvac.Client :
+def main():
+    global client
+    try:
+        client = authenticate(url=URL)
+    except requests.exceptions.ConnectionError as e:
+        print(f"initialize failed to connect to the vault using URL {URL}.  Error is {e}", file=sys.stderr)
+    except VaultExceptions:
+        print("Initialize did connect to the vault but did not authenticate")
+
+    keys = initialize(shares=5, threshold=3)
+
+    key_num = 0
+    while client.sys.is_sealed():
+        unseal_response = client.sys.submit_unseal_key(keys[key_num])
+        print(f"Unseal response is {unseal_response}")
+
+    print("Read and write secrets here", file=sys.stderr)
+
+    print(f"About to seal the client: client.sys.is_sealed() is {client.sys.is_sealed()}")
+    client.sys.seal()
+    print(f"The client is sealed: client.sys.is_sealed() is {client.sys.is_sealed()}")
+    return 0
+
+
+
+def authenticate(url: str) -> hvac.Client :
     # Return a client that has been authenticate
-    client = hvac.Client(url=url)
-    if client.is_authenticated():
-        return client
-    raise VaultExceptions("Client failed to authentication")
+    _client = hvac.Client(url=url)
+    if _client.is_authenticated():
+        return _client
+    raise VaultExceptions("Client failed authentication")
+
+def initialize( shares: int = 5, threshold: int = 3):
+    assert shares >= threshold, f"shares {shares} must not be < threshold {threshold}"
+    global client
+    result = client.sys.initialize(secret_shares=shares, secret_threshold=threshold)
+    if not client.sys.is_initialized():
+        raise VaultExceptions("The server failed to initialize")
+    root_token = result['root_token']
+    _keys = result['keys']
+    client.token = root_token
+    print(f"The type of keys is {type(_keys)} . ", file=sys.stderr)
+    return _keys
+
+
 
 if "__main__" == __name__:
-    try:
-        initialize(url=URL)
-    except requests.exceptions.ConnectionError as e:
-        print("initialize failed to connect to the vault using URL {URL}.  Error is {e}", file=sys.stderr)
-    except VaultExceptions:
-        print("Initial did connect to the vault but did not authenticate")
+    main()
 
 
 
