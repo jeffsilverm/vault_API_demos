@@ -56,12 +56,15 @@ def authenticate(url: str) -> hvac.Client :
 def initialize( shares: int = 5, threshold: int = 3):
     assert shares >= threshold, f"shares {shares} must not be < threshold {threshold}"
     global client
-    result = client.sys.initialize(secret_shares=shares, secret_threshold=threshold)
-    if not client.sys.is_initialized():
-        raise VaultExceptions("The server failed to initialize")
-    root_token = result['root_token']
-    _keys = result['keys']
-    client.token = root_token
+    if client.sys.is_initialized():
+        print("The vault is already initialized", file=sys.stderr)
+    else:
+        result = client.sys.initialize(secret_shares=shares, secret_threshold=threshold)
+        if not client.sys.is_initialized():
+            raise VaultExceptions("The server failed to initialize")
+        root_token = result['root_token']
+        _keys = result['keys']
+        client.token = root_token
     print(f"The type of keys is {type(_keys)} . ", file=sys.stderr)
     return _keys
 
