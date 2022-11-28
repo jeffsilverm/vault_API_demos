@@ -14,8 +14,10 @@ class TestAnsibleMFA:
         self.session = mfa
 
     def test_daemon_running(self):
-        self.session.stop_daemon()
-        self.session.was_started_already = False     # Since stop_daemon had stopped it
+        if self.session.is_daemon_running():
+            self.session.stop_daemon()
+        # Since stop_daemon had stopped it or else it was already stopped
+        self.session.was_started_already = False
         assert not self.session.is_daemon_running(), "is_daemon_running() thinks the " \
                "daemon is running, but test_daemon_running had stopped it"
         self.session.start_daemon(url=AnsibleMFA.VAULT_ADDR, args=AnsibleMFA.DAEMON_ARGUMENTS )
