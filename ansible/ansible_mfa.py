@@ -47,8 +47,11 @@ class AnsibleMFA(object):
 
         # From https://hvac.readthedocs.io/en/stable/source/hvac_v1.html
         try:
-            self.client = hvac.Client(url=VAULT_URL, )
-        except Exception:
+            self.client = hvac.Client(url=self.VAULT_ADDR)
+        except Exception as e:
+            print("In is_deamon_running, an exception was raised:\n " \
+                f"\n{str(e)}\nContinuiong (for now)",
+                file=sys.stderr)
             return False
         else:
             return True
@@ -99,11 +102,12 @@ class AnsibleMFA(object):
             try:
                 pcl: List = pid_obj.connections(kind="tcp")
             except psutil.AccessDenied as pA:
-                print(f"Access denied.  My EUID is {my_euid}"
-                      f"The daemon EUID is {daemon_euid}"
-                      f"The rest of the pid_obj is {pid_obj}",
+                print(f"Access denied.  My EUID is {my_euid}. "
+                      f"The daemon EUID is {daemon_euid}. "
+                      f"The rest of the pid_obj is {pid_obj}. ",
                       file=sys.stderr)
-                raise
+                # There may be several reasons why a process has denied access.
+                continue
             # If there are no connections from this process, then it cannot be
             # the daemon I am looking for.  So skip it and try the next one.
             if len(pcl) == 0:
@@ -121,25 +125,34 @@ class AnsibleMFA(object):
                     # in a "reasonable" amount of time, then terminate it.
                     break
             else:
-                print("Did not kill any daemons.  Perhaps none are running", file=sys.stderr)
+                print("Did not kill any daemons.  Perhaps none are running",
+                      file=sys.stderr)
         print("Exiting from stop_daemon", file=sys.stderr)
 
-    def start_daemon(self, url: str, args:List[str]):
+    def start_daemon(self, url: str, args: List[str]):
 
-        args = [url] + self.DAEMON_ARGUMENTS
+        assert isinstance(args, list), \
+            f"args should be a list but it's really a {type(args)}."
+        args = ["vault", "server", url] + args
         try:
+            print(f"Starting the daemon with {args}", file=sys.stdout )
             # subprocess.run is recommended after python 3.5
-            # env takes a mapping type, os.environ is a map.  This allows the child to get the
+            # env takes a mapping type, os.environ is a map.  This allows the
+            # child to get the
             # full environment set of the parent.  It might not be necessary
-            results = subprocess.run(args=args, shell=False, capture_output=True, check=True, env=os.environ)
+            results = subprocess.run(args=args, shell=False,
+                                     capture_output=True, check=True,
+                                     env=os.environ)
             output = results.stdout
-        except CalledProcessError as c:
-            print(f"subprocess.run failed with CalledProcessError exception {c}", file=sys.stderr)
+        except subprocess.CalledProcessError as c:
+            print("subprocess.run failed with subprocess.CalledProcessError "
+                  f"exception {c}.\n args is {args}.\n", file=sys.stderr)
+
             returncode = c.returncode
             cmd = c.cmd
             output = c.output
             print(f"Return code was {returncode}, command was {cmd} "
                   f" and output was \n{output}\n", file=sys.stderr)
-
-        # other exceptions are possible, but I am not going to handle them, just raise them.
-
+            # other exceptions are possible, but I am not going to handle
+            # them, just raise them.
+        return output
