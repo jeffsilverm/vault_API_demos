@@ -1,0 +1,5 @@
+# .gitignore file for Jeff's ansible vault demonstration
+#
+# Ignore any TLS files with private keys
+*.pem
+*.key
