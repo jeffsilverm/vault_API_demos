@@ -66,6 +66,7 @@ class AnsibleMFA(object):
 
 
 
+
     def is_initialized(self) -> bool:
         # root token, keys go in session
 

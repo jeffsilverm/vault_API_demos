@@ -10,8 +10,14 @@ import os
 
 class TestAnsibleMFA:
 
+    session = AnsibleMFA()
+    if not session.is_daemon_running():
+        print("The daemon isn't running so there is no point in continuing", file=sys.stderr)
+        sys.exit(1)
 
+    @pytest.mark.skip
     def test_is_daemon_running(self):
+        global session
         try:
             if self.session.is_daemon_running():
                 self.session.was_started_already = True
@@ -36,7 +42,7 @@ class TestAnsibleMFA:
                                                          "daemon or else " \
                                                          "is_daemon_running() is " \
                                                          "wrong"
-            self.session.start_daemon(url=AnsibleMFA.VAULT_ADDR,
+            session.start_daemon(url=AnsibleMFA.VAULT_ADDR,
                                       args=AnsibleMFA.DAEMON_ARGUMENTS)
             assert self.session.is_daemon_running(), "is_daemon_running() thinks " \
                 "the daemon is not running, but test_daemon_running had called " \
@@ -53,7 +59,7 @@ class TestAnsibleMFA:
 @pytest.fixture(scope='session')
 def mfa_fixture():
     test_ansible_MFA: TestAnsibleMFA = TestAnsibleMFA()
-    test_ansible_MFA.session = AnsibleMFA()
+    assert test_ansible_MFA.hasattr("session"), f"test_ansible_MFA does not have attribute session, and it should.\n{dir(test_ansible_MFA)}.\n"
     assert test_ansible_MFA.session.is_daemon_running(), "Immediately after instantiating TestAnsibleMFA, the daemon is not running"
     print("Immediately after instantiating TestAnsibleMFA, the daemon IS running", file=sys.stderr)
     return test_ansible_MFA
