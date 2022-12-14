@@ -9,6 +9,8 @@ import signal
 from typing import List
 import os
 
+class VaultExceptions(Exception):
+    pass
 
 class AnsibleMFA(object):
     VAULT_ADDR = os.environ.get('VAULT_ADDR',
@@ -25,6 +27,7 @@ class AnsibleMFA(object):
     DAEMON_ARGUMENTS = ["-config=tls_config.hcl"]
     VAULT_EXECUTABLE = "/usr/local/bin/vault"       # You could also use shutil.which() to locate vault at run-time
 
+
     def __init__(self) -> None:
         self.was_started_already = True  # Assume that the server is already
         # started
@@ -35,6 +38,7 @@ class AnsibleMFA(object):
         self.local_addr = psutil._common.addr(ip=addr, port=port)
         self.values = dict()
         self.client = None
+        self.handle = hvac.Client()
 
     def is_daemon_running(self) -> bool:
         # Is the daemon running?  Find out by trying to connect to it.  If the
@@ -71,8 +75,27 @@ class AnsibleMFA(object):
 
         return True
 
-    def initialize(self, keys=1, threshold=1) -> None:
-        pass
+    def initialize(self, shares=1, threshold=1) -> None:
+        # I think normally, you'd want to do the initialization on the
+        # server, not on the  client.
+        assert shares >= threshold, f"shares {shares} must not be < " \
+                                    f"threshold {threshold}"
+
+        if self.client.sys.is_initialized():
+            print("The vault is already initialized, continuing",
+                  file=sys.stderr)
+            _keys = None
+        else:
+            result = self.client.sys.initialize(secret_shares=shares,
+                                           secret_threshold=threshold)
+            if not self.client.sys.is_initialized():
+                raise VaultExceptions("The server failed to initialize")
+            root_token = result['root_token']
+            _keys = result['keys']
+            self.client.token = root_token
+            print(f"The type of keys is {type(_keys)} . ", file=sys.stderr)
+        return _keys
+
 
     def is_sealed(self) -> bool:
         return True
@@ -173,3 +196,7 @@ class AnsibleMFA(object):
         except TimeoutExpired:
             print
         return output
+
+
+if "__main__" == __name__:
+    run_ansible()
