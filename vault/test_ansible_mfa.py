@@ -8,16 +8,25 @@ from ansible_mfa import AnsibleMFA
 import os
 
 
-class TestAnsibleMFA:
-
+@pytest.fixture(scope='class')
+def test_ansible_fixture(self):
+    print("In ansible_setup_fixture", file=sys.stderr)
     session = AnsibleMFA()
     if not session.is_daemon_running():
-        print("The daemon isn't running so there is no point in continuing", file=sys.stderr)
+        print("The daemon isn't running so there is no point in continuing",
+              file=sys.stderr)
         sys.exit(1)
+    print("In ansible_setup_fixture before yielding", file=sys.stderr)
+    yield session
+    print("In ansible_setup_fixture after yielding", file=sys.stderr)
+
+
+class TestAnsibleMFA:
+
+
 
     @pytest.mark.skip
     def test_is_daemon_running(self):
-        global session
         try:
             if self.session.is_daemon_running():
                 self.session.was_started_already = True
@@ -25,22 +34,29 @@ class TestAnsibleMFA:
             else:
                 self.session.was_started_already = False
             assert not self.session.is_daemon_running(), "is_daemon_running() " \
+                                                         "" \
                                                          "thinks the " \
                                                          "daemon is running, " \
-                                                         "but test_daemon_running " \
+                                                         "but " \
+                                                         "test_daemon_running " \
                                                          "" \
                                                          "" \
                                                          "" \
-                                                         "had called stop_daemon(" \
+                                                         "" \
+                                                         "had called " \
+                                                         "stop_daemon(" \
                                                          ") which " \
-                                                         "should have stopped it. " \
+                                                         "should have stopped " \
+                                                         "it. " \
                                                          "" \
                                                          "" \
                                                          "" \
                                                          " Either stop_daemon " \
+                                                         "" \
                                                          "doesn't stop the " \
                                                          "daemon or else " \
-                                                         "is_daemon_running() is " \
+                                                         "is_daemon_running() " \
+                                                         "is " \
                                                          "wrong"
             session.start_daemon(url=AnsibleMFA.VAULT_ADDR,
                                       args=AnsibleMFA.DAEMON_ARGUMENTS)
